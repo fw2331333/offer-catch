@@ -296,7 +296,7 @@ export default function Sidebar({
         {resumeMsg && <p className="text-xs mt-2 text-brand-700 shrink-0">{resumeMsg}</p>}
       </div>
 
-      <div className="p-3 text-xs text-gray-400 border-t border-gray-100 shrink-0">Offer 捕手 v1.0</div>
+      <div className="p-3 text-xs text-gray-400 border-t border-gray-100 shrink-0">Offer 捕手 v1.1</div>
     </aside>
   );
 }

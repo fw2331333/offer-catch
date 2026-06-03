@@ -29,4 +29,4 @@ Set-Content -Path ".env" -Value $content.TrimEnd() -Encoding UTF8
 
 Write-Host "已设置 APP_PUBLIC_URL=$url" -ForegroundColor Green
 Write-Host "请执行: docker compose -p offer-hunter up -d --force-recreate api" -ForegroundColor Cyan
-Write-Host "然后重新「忘记密码」发一封新邮件（旧邮件里的链接仍是旧地址）" -ForegroundColor Yellow
+Write-Host "然后重新「忘记密码」发一封新邮件" -ForegroundColor Yellow

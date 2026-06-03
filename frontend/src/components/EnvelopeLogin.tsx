@@ -266,7 +266,7 @@ const EnvelopeLogin = forwardRef<EnvelopeLoginHandle, Props>(function EnvelopeLo
           ref={hintRef}
           className={`mb-6 text-sm text-gray-500 ${revealed ? "invisible h-0 mb-0" : ""}`}
         >
-          轻触信封，取出登录信笺
+          轻触信封，取出信笺
         </p>
 
         <div
@@ -437,11 +437,7 @@ const EnvelopeLogin = forwardRef<EnvelopeLoginHandle, Props>(function EnvelopeLo
           )}
         </div>
 
-        {revealed && (
-          <p className="mt-8 text-xs text-gray-400 text-center">
-            演示账号 demo@student.edu · demo1234
-          </p>
-        )}
+        
       </div>
     </div>
   );
