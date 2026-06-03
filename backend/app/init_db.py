@@ -1,3 +1,8 @@
+"""
+容器启动命令会执行：python -m app.init_db
+
+建表 + 迁移 + 种子岗位 + 演示账号（仅库为空时写入）。
+"""
 import asyncio
 
 from sqlalchemy import select
@@ -175,7 +180,7 @@ SEED_JOBS = [
 async def init() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    await run_migrations()
+    await run_migrations()  # 与 main.py lifespan 逻辑一致，保证 CLI 单独跑也升级 schema
 
     async with async_session() as db:
         count = await db.execute(select(JobModel).limit(1))

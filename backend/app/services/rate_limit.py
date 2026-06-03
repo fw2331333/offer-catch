@@ -1,3 +1,8 @@
+"""
+基于 Redis 的滑动窗口限流（用 INCR + EXPIRE 实现）。
+
+键名示例：rl:login:fail:email:xxx → 该邮箱连续登录失败次数
+"""
 import logging
 
 from fastapi import HTTPException, status
@@ -21,6 +26,7 @@ def _forgot_key(email: str) -> str:
 
 
 async def _incr_with_ttl(redis: Redis, key: str, window_sec: int) -> int:
+    """第一次计数时设置过期时间，窗口结束后键自动删除，计数归零。"""
     count = await redis.incr(key)
     if count == 1:
         await redis.expire(key, window_sec)

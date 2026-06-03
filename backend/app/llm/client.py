@@ -1,3 +1,8 @@
+"""
+调用 DeepSeek（OpenAI 兼容 API）。
+
+用户 Key 优先于环境变量 DEEPSEEK_API_KEY；错误统一转成 LLMServiceError 由 main.py 处理。
+"""
 import json
 import re
 from typing import Any

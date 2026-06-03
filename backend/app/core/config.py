@@ -1,9 +1,15 @@
+"""
+全局配置：从 .env / 环境变量读取，类型由 Pydantic 校验。
+
+字段名规则：环境变量 EMAIL_VERIFY_EXPIRE_HOURS → email_verify_expire_hours
+"""
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    # env_file：本地与 Docker 都把 .env 挂进容器，compose 的 env_file 也会注入
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     deepseek_api_key: str = ""
@@ -63,4 +69,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    """单例配置，进程内只解析一次 .env。"""
     return Settings()

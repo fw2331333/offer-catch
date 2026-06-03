@@ -1,3 +1,14 @@
+"""
+认证相关 HTTP 接口。
+
+注册流程（无密码表单）：
+  register → 邮件里的 token → complete-email-token 设密码 → login 拿 JWT
+
+安全设计：
+  - 库中只存 token 的 SHA256，链接里带明文 token（类似重置密码最佳实践）
+  - 未验证用户用随机占位密码，防止空密码登录
+  - 登录/忘记密码用 Redis 限流（见 rate_limit.py）
+"""
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -43,12 +54,14 @@ router = APIRouter(prefix="/auth", tags=["认证"])
 
 
 def _placeholder_password_hash() -> str:
+    """注册时尚未设密码，先写入随机哈希，只有通过邮件链接才能改成真密码。"""
     return hash_password(secrets.token_urlsafe(32))
 
 
 async def _send_token_for_user(
     db: AsyncSession, user: User, purpose: str
 ) -> tuple[str | None, bool]:
+    """发令牌邮件；开发环境未配 SMTP 时可能返回 dev_verify_url 给前端展示。"""
     _, action_url, sent = await issue_email_token(db, user, purpose)
     await db.commit()
     dev_url = action_url if should_expose_dev_link(sent) else None
@@ -57,11 +70,13 @@ async def _send_token_for_user(
 
 @router.post("/register", response_model=RegisterResponse)
 async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    # 邮箱统一小写，避免 user@x.com 与 User@x.com 当成两个账号
     email = body.email.strip().lower()
     result = await db.execute(select(User).where(User.email == email))
     existing = result.scalar_one_or_none()
 
     if existing:
+        # 一邮箱一账号：已验证不可覆盖；未验证也不重复发注册，走忘记密码/重发
         if existing.email_verified:
             raise HTTPException(
                 status_code=400,
@@ -79,7 +94,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
         email_verified=False,
     )
     db.add(user)
-    await db.flush()
+    await db.flush()  # flush 后 user.id 才有值，才能建关联的 StudentProfile
     db.add(StudentProfile(user_id=user.id, target_cities=[], target_roles=[], industries=[]))
 
     dev_url, sent = await _send_token_for_user(db, user, PURPOSE_VERIFY_EMAIL)
@@ -103,6 +118,7 @@ async def resend_verification(body: ResendVerificationRequest, db: AsyncSession 
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
 
+    # 无论邮箱是否存在都返回模糊文案，防止攻击者枚举已注册邮箱
     if not user or user.email_verified:
         return MessageResponse(
             message="若该邮箱已注册且未验证，你将收到设置密码邮件",
@@ -133,7 +149,7 @@ async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depend
         return MessageResponse(
             message="若该邮箱已注册，你将收到相关邮件",
             email_sent=False,
-        )
+        )  # 同上：不泄露「该邮箱未注册」
 
     redis = get_redis()
     await check_forgot_password_allowed(redis, email)
@@ -196,7 +212,7 @@ async def login(
     db: AsyncSession = Depends(get_db),
 ):
     email = body.email.strip().lower()
-    ip = client_ip(request)
+    ip = client_ip(request)  # 限流同时看邮箱与 IP
     redis = get_redis()
     await check_login_allowed(redis, email, ip)
 
@@ -211,6 +227,7 @@ async def login(
             detail="邮箱尚未验证，请查收邮件完成设置密码，或使用忘记密码重发",
         )
     await clear_login_failures(redis, email, ip)
+    # 前端保存 access_token，之后请求头：Authorization: Bearer <token>
     return TokenResponse(access_token=create_access_token(str(user.id)))
 
 

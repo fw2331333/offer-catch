@@ -1,3 +1,6 @@
+"""
+SMTP 发信。同步 smtplib 包在 asyncio.to_thread 里跑，避免阻塞事件循环。
+"""
 import asyncio
 import logging
 import smtplib
@@ -30,6 +33,7 @@ def _send_smtp_sync(to_email: str, subject: str, html_body: str, text_body: str)
     msg.attach(MIMEText(text_body, "plain", "utf-8"))
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
+    # QQ 邮箱：587+STARTTLS 或 465+SSL 二选一
     if settings.smtp_port == 465:
         server = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=30)
     else:

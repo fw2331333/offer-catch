@@ -1,6 +1,5 @@
-# 项目名: offer-hunter（与目录 offer-catch 区分）
-# 国内拉镜像慢：在 .env 里取消注释 docker.1ms.run 镜像行；默认走 Docker Hub
-name: offer-hunter
+# 兼容 docker-compose 1.x：使用 version 3.8，项目名请用 -p offer-hunter
+version: "3.8"
 
 services:
   db:
@@ -37,6 +36,8 @@ services:
       dockerfile: Dockerfile
       args:
         PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.11-slim}
+        DEBIAN_MIRROR: ${DEBIAN_MIRROR:-mirrors.aliyun.com}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.cloud.tencent.com/pypi/simple}
     image: offer-hunter-api:latest
     container_name: offer-hunter-api
     dns:
@@ -52,10 +53,9 @@ services:
     ports:
       - "8001:8000"
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - db
+      - redis
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
@@ -77,11 +77,9 @@ services:
     ports:
       - "8080:80"
     depends_on:
-      api:
-        condition: service_healthy
+      - api
+    restart: unless-stopped
 
 volumes:
   pgdata:
-    name: offer-hunter-pgdata
   uploads:
-    name: offer-hunter-uploads

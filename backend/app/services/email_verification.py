@@ -1,3 +1,9 @@
+"""
+邮件令牌业务：生成、发信、校验、完成设密。
+
+为什么只存 hash：
+  数据库泄露时攻击者仍无法伪造链接；邮件/日志里才有明文 token。
+"""
 import hashlib
 import logging
 import secrets
@@ -21,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 def _hash_token(raw: str) -> str:
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()  # 64 位十六进制
 
 
 def build_set_password_url(raw_token: str) -> str:
@@ -55,6 +61,7 @@ async def issue_email_token(
     token_hash = _hash_token(raw)
     expires = datetime.now(timezone.utc) + timedelta(hours=settings.email_verify_expire_hours)
 
+    # 同一用户同用途只保留最新令牌，避免旧链接仍可用
     await db.execute(
         delete(EmailVerificationToken).where(
             EmailVerificationToken.user_id == user.id,

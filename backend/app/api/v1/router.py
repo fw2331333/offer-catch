@@ -1,3 +1,8 @@
+"""
+将各业务模块的路由挂到同一前缀 /api/v1 下。
+
+例如 auth.router 自带 prefix="/auth" → 完整路径 /api/v1/auth/login
+"""
 from fastapi import APIRouter
 
 from app.api.v1 import auth, chat, jobs, match, profile, resumes, settings

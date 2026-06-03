@@ -1,3 +1,8 @@
+"""
+FastAPI 依赖注入：需要登录的路由写 user: User = Depends(get_current_user)。
+
+流程：读 Bearer Token → 解码 JWT → 查库 → 校验邮箱已验证。
+"""
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
@@ -7,6 +12,7 @@ from app.core.security import decode_access_token
 from app.db.session import get_db
 from app.models.user import User
 
+# auto_error=False：没传 Token 时返回 None，由下面统一抛 401，而不是 403
 security = HTTPBearer(auto_error=False)
 
 

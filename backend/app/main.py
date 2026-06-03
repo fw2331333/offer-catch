@@ -1,3 +1,13 @@
+"""
+FastAPI 应用入口。
+
+请求路径：浏览器/前端 → Nginx(web) → 本服务(api) → PostgreSQL / Redis / DeepSeek API
+
+学习要点：
+- lifespan：启动时建表、跑迁移、连 Redis；关闭时释放连接
+- CORSMiddleware：允许前端域名跨域带 Cookie/Authorization
+- include_router：业务路由集中在 app/api/v1/
+"""
 import logging
 from contextlib import asynccontextmanager
 
@@ -19,13 +29,16 @@ from app.services.resume_parser import ensure_upload_dir
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    """应用生命周期：比在每个路由里 init 更干净，且保证顺序。"""
     settings = get_settings()
     ensure_upload_dir(settings.upload_dir)
+    # create_all：按 ORM 模型建表（新表）；已有表不会删改列
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    # 手写 SQL 迁移：给旧库补字段，可重复执行（幂等）
     await run_migrations()
     await init_redis()
-    yield
+    yield  # 此处之后服务开始接请求
     await close_redis()
 
 
@@ -50,6 +63,7 @@ app.include_router(api_router)
 
 @app.exception_handler(LLMServiceError)
 async def llm_service_error_handler(_: Request, exc: LLMServiceError):
+    """把 LLM 调用错误统一成 JSON，前端好展示 detail。"""
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
 
 

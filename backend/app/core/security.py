@@ -1,3 +1,9 @@
+"""
+密码与 JWT。
+
+- 密码只存 bcrypt 哈希，不可逆
+- 登录成功后发 JWT，payload 里 sub=用户 id，前端放在 Authorization: Bearer
+"""
 from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
@@ -17,6 +23,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def create_access_token(subject: str) -> str:
+    """subject 一般是 user.id 的字符串。"""
     settings = get_settings()
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes)
     return jwt.encode(

@@ -1,10 +1,16 @@
+"""
+轻量 SQL 迁移（不用 Alembic 时的折中方案）。
+
+每条语句带 IF NOT EXISTS / IF NOT EXISTS 列，可重复执行；
+适合小团队、字段增量不多。表结构大改时仍建议上 Alembic。
+"""
 from sqlalchemy import text
 
 from app.db.session import engine
 
 
 async def run_migrations() -> None:
-    """幂等迁移，避免旧库缺少新字段导致 500。"""
+    """在 main lifespan 与 init_db 中调用，保证旧数据卷升级后不 500。"""
     async with engine.begin() as conn:
         await conn.execute(
             text(

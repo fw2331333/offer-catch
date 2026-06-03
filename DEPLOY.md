@@ -90,7 +90,43 @@ SMTP_USE_TLS=true
 
 ---
 
-## 六、启动
+## 六、国内服务器加速（可选）
+
+Docker Hub、Debian apt、PyPI 在国外源上可能很慢或超时。
+
+1. **Docker 镜像**：`/etc/docker/daemon.json` 配置 `https://mirror.ccs.tencentyun.com`（腾讯云内网推荐）。
+2. **构建加速**：在 `.env` 增加：
+
+```env
+DEBIAN_MIRROR=mirrors.aliyun.com
+PIP_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple
+NPM_REGISTRY=https://registry.npmmirror.com
+```
+
+再执行 `docker compose ... up -d --build`。首次 API 镜像若卡在 `apt-get` 超过 10 分钟，可先 `Ctrl+C` 加上述配置后重试。
+
+### pip install 失败（exit code 2）
+
+常见原因：服务器代码过旧，`backend/Dockerfile` 里仍是直连 `pypi.org` 的一行 `pip install`。
+
+```bash
+cd ~/offer-catch
+git pull   # 拉取含 PyPI 镜像与超时的 Dockerfile
+
+# .env 中确认（腾讯云可用腾讯源）
+DEBIAN_MIRROR=mirrors.aliyun.com
+PIP_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple
+
+# 只重建 API，避免 web 再编一遍
+sudo docker compose -p offer-hunter build --no-cache api
+sudo docker compose -p offer-hunter up -d
+```
+
+仍失败时看完整日志：`sudo docker compose -p offer-hunter build --no-cache api 2>&1 | tee /tmp/api-build.log`，检查磁盘 `df -h`（空间不足也会失败）。
+
+---
+
+## 七、启动
 
 ```bash
 cd ~/offer-catch
@@ -112,7 +148,7 @@ curl -I http://127.0.0.1:8080
 
 ---
 
-## 七、HTTPS（Caddy 示例）
+## 八、HTTPS（Caddy 示例）
 
 ```bash
 sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
@@ -136,7 +172,7 @@ sudo systemctl reload caddy
 
 ---
 
-## 八、生产安全清单
+## 九、生产安全清单
 
 - [ ] `.env` 未提交到 Git
 - [ ] `EXPOSE_DEV_VERIFY_LINK=false`
@@ -147,7 +183,7 @@ sudo systemctl reload caddy
 
 ---
 
-## 九、常用命令
+## 十、常用命令
 
 ```bash
 # 查看日志
@@ -163,7 +199,7 @@ sudo docker-compose -p offer-hunter down
 
 ---
 
-## 十、本机开发（Windows）
+## 十一、本机开发（Windows）
 
 ```powershell
 cd f:\offer-catch

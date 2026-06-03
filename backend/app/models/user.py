@@ -1,3 +1,8 @@
+"""
+用户与求职档案 ORM。
+
+SQLAlchemy 2.0 风格：Mapped[T] + mapped_column，relationship 描述一对多/一对一。
+"""
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, Text, func
@@ -11,16 +16,16 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)  # 登录名
     username: Mapped[str] = mapped_column(String(100))
     hashed_password: Mapped[str] = mapped_column(String(255))
-    encrypted_api_key: Mapped[str | None] = mapped_column(Text, default=None)
-    email_verified: Mapped[bool] = mapped_column(default=False, index=True)
+    encrypted_api_key: Mapped[str | None] = mapped_column(Text, default=None)  # 用户自备 LLM Key（加密存）
+    email_verified: Mapped[bool] = mapped_column(default=False, index=True)  # 未完成邮件验证不能登录
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     profile: Mapped["StudentProfile | None"] = relationship(back_populates="user", uselist=False)
     verification_tokens: Mapped[list["EmailVerificationToken"]] = relationship(
-        back_populates="user", cascade="all, delete-orphan"
+        back_populates="user", cascade="all, delete-orphan"  # 删用户时一并删验证令牌
     )
     resumes: Mapped[list["Resume"]] = relationship(back_populates="user")
     chat_sessions: Mapped[list["ChatSession"]] = relationship(back_populates="user")

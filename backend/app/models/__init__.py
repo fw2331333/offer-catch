@@ -1,3 +1,4 @@
+# 在 main.py / init_db 里 import app.models，确保所有表注册到 Base.metadata
 from app.models.chat import ChatMessage, ChatSession
 from app.models.job import JobPosting
 from app.models.match import MatchResult

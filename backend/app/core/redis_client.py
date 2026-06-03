@@ -1,3 +1,8 @@
+"""
+Redis 单例：在 lifespan 里 init_redis，路由里 get_redis() 取用。
+
+用途：登录限流、岗位/档案列表缓存（见 redis_cache.py）。
+"""
 import logging
 
 from redis.asyncio import Redis

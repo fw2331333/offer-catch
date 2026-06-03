@@ -1,7 +1,10 @@
+"""
+请求/响应 DTO（Data Transfer Object）。
+
+Pydantic 负责：JSON 反序列化、类型校验、自动生成 OpenAPI 文档（/docs）。
+ORM 转 JSON 用 model_config = {"from_attributes": True}（见 UserResponse）。
+"""
 from pydantic import BaseModel, EmailStr, Field
-
-
-
 
 
 class RegisterRequest(BaseModel):

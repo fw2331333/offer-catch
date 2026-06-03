@@ -1,3 +1,8 @@
+"""
+岗位 CRUD、解析 JD、AI 搜岗等。
+
+需要登录：Depends(get_current_user)。列表接口演示 Redis 缓存模式。
+"""
 import uuid
 from pathlib import Path
 
@@ -89,11 +94,12 @@ async def list_jobs(
     _: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # 典型缓存：cache_get_json → 未命中查库 → cache_set_json（见 redis_cache.py）
     redis = get_redis()
     cache_key = jobs_list_cache_key(city, job_type, source, q, limit)
     cached = await cache_get_json(redis, cache_key)
     if cached is not None:
-        return [JobListItem.model_validate(item) for item in cached]
+        return [JobListItem.model_validate(item) for item in cached]  # 命中缓存，跳过 SQL
 
     stmt = select(JobPosting)
     if city:

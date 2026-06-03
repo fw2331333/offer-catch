@@ -1,3 +1,8 @@
+"""
+读多写少的接口用 Redis 缓存 JSON，减轻 PostgreSQL 压力。
+
+模式：先 cache_get_json → 未命中查库 → cache_set_json；写操作后 invalidate_* 删相关键。
+"""
 import hashlib
 import json
 import logging
@@ -30,7 +35,7 @@ def jobs_list_cache_key(
             str(limit),
         ]
     )
-    digest = hashlib.sha256(raw.encode()).hexdigest()[:20]
+    digest = hashlib.sha256(raw.encode()).hexdigest()[:20]  # 查询参数拼成短键，避免键过长
     return f"{PREFIX_JOBS_LIST}{digest}"
 
 

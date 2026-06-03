@@ -1,3 +1,8 @@
+"""
+智能对话：会话存 PostgreSQL，回复可走 SSE 流式（StreamingResponse）。
+
+流式协议见 llm/streaming.py 的 sse_line。
+"""
 import json
 from collections.abc import AsyncIterator
 
