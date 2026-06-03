@@ -1,0 +1,18 @@
+# 生产叠加配置：数据库/Redis 不映射到宿主机公网
+# 用法：docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+name: offer-hunter
+
+services:
+  db:
+    ports: !reset []
+
+  redis:
+    ports: !reset []
+
+  api:
+    ports:
+      - "127.0.0.1:8001:8000"
+
+  web:
+    ports:
+      - "127.0.0.1:8080:80"

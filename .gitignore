@@ -1,0 +1,54 @@
+# ===== 密钥与本地配置（切勿提交） =====
+.env
+.env.*
+!.env.example
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# ===== Node / 前端构建 =====
+node_modules/
+frontend/dist/
+dist/
+*.tsbuildinfo
+
+# ===== 上传与用户数据 =====
+uploads/*
+backend/uploads/*
+!uploads/.gitkeep
+!backend/uploads/.gitkeep
+
+# ===== 日志与系统 =====
+*.log
+logs/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== IDE / 编辑器 =====
+.idea/
+.vscode/
+*.swp
+*.swo
+.cursor/
+
+# ===== Docker 本地卷（若映射到项目目录） =====
+pgdata/
+
+# ===== 临时与备份 =====
+*.bak
+*.tmp
+*.tar.gz

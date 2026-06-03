@@ -1,0 +1,87 @@
+# 项目名: offer-hunter（与目录 offer-catch 区分）
+# 国内拉镜像慢：在 .env 里取消注释 docker.1ms.run 镜像行；默认走 Docker Hub
+name: offer-hunter
+
+services:
+  db:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    container_name: offer-hunter-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-offer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-offer123}
+      POSTGRES_DB: ${POSTGRES_DB:-offer_catch}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-offer} -d ${POSTGRES_DB:-offer_catch}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: ${REDIS_IMAGE:-redis:7-alpine}
+    container_name: offer-hunter-redis
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.11-slim}
+    image: offer-hunter-api:latest
+    container_name: offer-hunter-api
+    dns:
+      - 223.5.5.5
+      - 114.114.114.114
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-offer}:${POSTGRES_PASSWORD:-offer123}@db:5432/${POSTGRES_DB:-offer_catch}
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - uploads:/app/uploads
+    ports:
+      - "8001:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:20-alpine}
+        NGINX_IMAGE: ${NGINX_IMAGE:-nginx:alpine}
+        NPM_REGISTRY: ${NPM_REGISTRY:-}
+        VITE_API_BASE: ""
+    image: offer-hunter-web:latest
+    container_name: offer-hunter-web
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+    name: offer-hunter-pgdata
+  uploads:
+    name: offer-hunter-uploads
