@@ -1,18 +1,14 @@
-# 生产叠加配置：数据库/Redis 不映射到宿主机公网
-# 用法：docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# 生产叠加配置（兼容 docker-compose 1.x，勿使用 !reset）
+# 用法：sudo docker-compose -f docker-compose.yml -f docker-compose.prod.yml -p offer-hunter up -d --build
+#
+# 说明：db/redis 端口仍在主文件中；请在云安全组勿放行 5433/6380。
+# web 映射 8080 供公网访问；api 仅容器内网，由 nginx 反代 /api。
 name: offer-hunter
 
 services:
-  db:
-    ports: !reset []
-
-  redis:
-    ports: !reset []
-
   api:
-    ports:
-      - "127.0.0.1:8001:8000"
+    ports: []
 
   web:
     ports:
-      - "127.0.0.1:8080:80"
+      - "8080:80"

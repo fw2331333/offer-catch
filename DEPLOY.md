@@ -94,8 +94,10 @@ SMTP_USE_TLS=true
 
 ```bash
 cd ~/offer-catch
-sudo docker-compose -f docker-compose.yml -f docker-compose.prod.yml -p offer-hunter up -d --build
-# 或：sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml -p offer-hunter up -d --build
+sudo docker-compose -p offer-hunter up -d --build
+
+若 `docker-compose.prod.yml` 报错（旧版不支持 `!reset`），用上面这一条即可。  
+可选叠加（仅隐藏 API 宿主机端口）：`sudo docker-compose -f docker-compose.yml -f docker-compose.prod.yml -p offer-hunter up -d --build`
 ```
 
 检查：
