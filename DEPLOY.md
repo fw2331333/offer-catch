@@ -216,4 +216,6 @@ cd f:\offer-catch
 .\scripts\start.ps1
 ```
 
-访问 http://localhost:8080
+访问 http://localhost:8080  
+
+演示账号（可选）：`demo@student.edu` / `demo1234`（详见 [用户指南](docs/用户指南.md)）

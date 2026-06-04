@@ -2,6 +2,7 @@ import { Check, FileText, KeyRound, MessageSquarePlus, PanelLeft, Trash2, Upload
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { ChatSession, ResumeListItem, ResumeListResponse } from "../api/types";
+import { APP_VERSION_LABEL } from "../config/version";
 
 interface Props {
   open: boolean;
@@ -321,7 +322,9 @@ export default function Sidebar({
         {resumeMsg && <p className="text-xs mt-2 text-brand-700 shrink-0">{resumeMsg}</p>}
       </div>
 
-      <div className="p-3 text-xs text-gray-400 border-t border-gray-100 shrink-0">Offer 捕手 v1.1</div>
+      <div className="p-3 text-xs text-gray-400 border-t border-gray-100 shrink-0">
+        Offer 捕手 {APP_VERSION_LABEL}
+      </div>
     </aside>
   );
 }

@@ -115,6 +115,13 @@ erDiagram
 | source | VARCHAR(30) | `seed` / `manual` / `ai` / `paste` / `screenshot` / `file` |
 | source_url | VARCHAR(500) | 招聘链接（可选） |
 | created_by_user_id | INT FK | 录入者（种子岗为空） |
+| is_shared | BOOLEAN | 默认 `false`；为 `true` 时其他用户可在列表中看到（seed 岗忽略此字段逻辑） |
+
+**可见性规则**（实现：`app/services/job_visibility.py`）：
+
+1. 种子岗位（`source=seed`）→ 所有用户可见  
+2. `created_by_user_id = 当前用户` → 本人岗位始终可见、可编辑/共享  
+3. 他人岗位且 `is_shared=true` → 只读可见，列表展示 `shared_by_username`
 
 ### 3.5 match_results（匹配结果缓存）
 

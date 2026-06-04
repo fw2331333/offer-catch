@@ -23,6 +23,7 @@ from app.core.redis_client import close_redis, init_redis, redis_ping
 from app.db.migrate import run_migrations
 from app.db.session import Base, engine
 import app.models  # noqa: F401 — register ORM models
+from app.core.version import __version__
 from app.llm.errors import LLMServiceError
 from app.services.resume_parser import ensure_upload_dir
 
@@ -45,7 +46,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(
     title="Offer 捕手 API",
     description="学生求职匹配智能体",
-    version="1.0.0",
+    version=__version__,
     lifespan=lifespan,
 )
 
@@ -71,7 +72,12 @@ async def llm_service_error_handler(_: Request, exc: LLMServiceError):
 async def health():
     redis_ok = await redis_ping()
     status_text = "ok" if redis_ok else "degraded"
-    return {"status": status_text, "service": "offer-catch", "redis": redis_ok}
+    return {
+        "status": status_text,
+        "service": "offer-catch",
+        "version": __version__,
+        "redis": redis_ok,
+    }
 
 
 @app.get("/")

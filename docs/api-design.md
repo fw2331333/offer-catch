@@ -1,6 +1,6 @@
 # Offer 捕手 — 接口设计文档
 
-> 面向开发者。用户文档见 [用户指南](./用户指南.md)。
+> **API v1.1.0** · 面向开发者。用户文档见 [用户指南](./用户指南.md)。
 
 **Base URL**：`http://localhost:8000`（Docker 内前端经 Nginx 代理 `/api`）
 
@@ -14,11 +14,13 @@
 | POST | `/login` | 登录 |
 | GET | `/me` | 当前用户 |
 
-**注册请求体**：
+**注册请求体**（注册时不填密码，邮件链接设密）：
 
 ```json
-{"email": "a@b.com", "username": "张三", "password": "123456"}
+{"email": "a@b.com", "username": "张三"}
 ```
+
+其他：`POST /forgot-password`、`GET /verify-email-token`、`POST /complete-email-token` 等见 `auth.py` 与 [auth-and-security.md](./auth-and-security.md)。
 
 ## 2. 求职画像 `/api/v1/profile`
 
@@ -31,24 +33,33 @@
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/latest` | 当前简历 |
+| GET | `/` | 当前用户全部简历列表 |
+| GET | `/latest` | 当前激活简历 |
 | POST | `/upload` | multipart 上传 |
+| DELETE | `/{resume_id}` | 删除简历（删当前则自动激活最新一条） |
 | POST | `/optimize` | body: `{"job_id": 1}` |
 
 ## 4. 岗位 `/api/v1/jobs`
 
+列表/详情/推荐/搜索均按 **可见性** 过滤（见 `app/services/job_visibility.py`）：
+
+- `source=seed`：全员可见  
+- `created_by_user_id = 当前用户`：本人岗位  
+- `is_shared=true` 且录入者非本人：他人共享岗位  
+
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/` | 列表，参数：city, job_type, source, q, limit |
-| POST | `/` | 手动录入岗位 |
+| GET | `/` | 列表，参数：city, job_type, source, q, limit（仅可见岗位） |
+| POST | `/` | 手动录入岗位（默认 `is_shared=false`） |
 | POST | `/ai-search` | AI + 岗位库联合查找 |
 | POST | `/ai-import` | 将 AI 发现岗位导入库 |
 | POST | `/parse-text` | 粘贴 JD 文本解析并可选保存（source=paste） |
 | POST | `/parse-screenshot` | 上传截图 OCR+解析（source=screenshot） |
 | POST | `/{job_id}/resume-analysis` | 结合当前简历：匹配报告+优化建议 |
-| GET | `/{job_id}` | 详情 |
-| PUT | `/{job_id}` | 更新（仅 manual/ai 且本人） |
-| DELETE | `/{job_id}` | 删除（仅 manual/ai 且本人） |
+| GET | `/{job_id}` | 详情（不可见则 404） |
+| PATCH | `/{job_id}/share` | body: `{"shared": true}`，切换是否共享（仅本人录入岗） |
+| PUT | `/{job_id}` | 更新（仅 manual/ai 等且本人） |
+| DELETE | `/{job_id}` | 删除（仅本人可管岗位） |
 
 **AI 查找请求**：
 
@@ -110,14 +121,22 @@
 }
 ```
 
-## 7. 系统
+## 7. 用户设置 `/api/v1/settings`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api-key` | 是否已配置 Key（用户 Key 或服务器默认） |
+| PUT | `/api-key` | body: `{"api_key": "sk-..."}` |
+| DELETE | `/api-key` | 清除用户自填 Key |
+
+## 8. 系统
 
 | 方法 | 路径 |
 |------|------|
 | GET | `/health` |
 | GET | `/docs` | Swagger UI |
 
-## 8. 错误码
+## 9. 错误码
 
 | HTTP | 含义 |
 |------|------|

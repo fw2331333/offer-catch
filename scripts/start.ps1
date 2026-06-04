@@ -14,7 +14,7 @@ Write-Host "`n正在构建并启动 Docker 服务（项目名: offer-hunter）..
 docker compose -p offer-hunter up -d --build
 
 Write-Host ""
-Write-Host "启动完成！" -ForegroundColor Green
+Write-Host "启动完成！（Offer 捕手 v1.1）" -ForegroundColor Green
 Write-Host "  前端: http://localhost:8080"
 Write-Host "  API:  http://localhost:8001/docs"
 Write-Host "  演示账号: demo@student.edu / demo1234"
