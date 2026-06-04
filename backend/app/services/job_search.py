@@ -178,6 +178,7 @@ async def search_local_jobs(
     query: str,
     *,
     api_key: str,
+    user_id: int,
     limit: int = 20,
     profile: StudentProfile | None = None,
     city: str | None = None,
@@ -191,7 +192,9 @@ async def search_local_jobs(
     job_type_f = filters["job_type"]
     industry = filters["industry"]
 
-    stmt = select(JobPosting)
+    from app.services.job_visibility import job_visible_clause
+
+    stmt = select(JobPosting).where(job_visible_clause(user_id))
     conditions = []
     if city_f:
         conditions.append(JobPosting.city.ilike(f"%{city_f}%"))
@@ -222,7 +225,7 @@ async def search_local_jobs(
 
     has_strict_filter = bool(city_f or job_type_f or industry)
     if not jobs and not has_strict_filter:
-        broad = select(JobPosting).where(
+        broad = select(JobPosting).where(job_visible_clause(user_id)).where(
             or_(
                 JobPosting.title.ilike(f"%{query[:20]}%"),
                 JobPosting.description.ilike(f"%{query[:30]}%"),

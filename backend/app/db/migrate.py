@@ -30,6 +30,16 @@ async def run_migrations() -> None:
         )
         await conn.execute(
             text(
+                "ALTER TABLE job_postings ADD COLUMN IF NOT EXISTS is_shared BOOLEAN DEFAULT FALSE"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_job_postings_is_shared ON job_postings (is_shared)"
+            )
+        )
+        await conn.execute(
+            text(
                 "ALTER TABLE match_results ADD COLUMN IF NOT EXISTS analysis_status VARCHAR(20) DEFAULT 'pending'"
             )
         )

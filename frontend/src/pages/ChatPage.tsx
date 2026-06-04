@@ -1,6 +1,9 @@
-import { ArrowUp, Brain, Briefcase, LogOut, Menu, Paperclip, Sparkles, User } from "lucide-react";
+import { ArrowUp, Brain, Briefcase, Home, LogOut, Menu, Paperclip, Sparkles, User } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { gsap } from "../lib/gsap";
+import EnvelopeExitOverlay from "../components/EnvelopeExitOverlay";
+import LogoutConfirmDialog from "../components/LogoutConfirmDialog";
 import { useEntranceAnimation } from "../hooks/useEntranceAnimation";
 import { streamChat } from "../api/chatStream";
 import { api, clearToken } from "../api/client";
@@ -32,7 +35,10 @@ export default function ChatPage() {
   const [streamStatus, setStreamStatus] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
+  const mainAreaRef = useRef<HTMLDivElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [logoutExiting, setLogoutExiting] = useState(false);
   const threadWidth = useContainerWidth(threadRef, 680);
 
   useEntranceAnimation(pageRef, [], {
@@ -65,7 +71,31 @@ export default function ChatPage() {
     setMessages([]);
     setStreamThinking("");
     setStreamContent("");
+    setStreamStatus("");
   };
+
+  const goHome = () => {
+    newChat();
+  };
+
+  const startLogoutAnimation = useCallback(() => {
+    setLogoutConfirmOpen(false);
+    setLogoutExiting(true);
+    const el = mainAreaRef.current;
+    if (el) {
+      gsap.to(el, {
+        filter: "blur(10px)",
+        opacity: 0.35,
+        duration: 0.45,
+        ease: "power2.inOut",
+      });
+    }
+  }, []);
+
+  const finishLogout = useCallback(() => {
+    clearToken();
+    window.location.href = "/login";
+  }, []);
 
   const selectSession = async (id: number) => {
     setSessionId(id);
@@ -177,7 +207,7 @@ export default function ChatPage() {
         onResumeChange={bumpResume}
       />
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div ref={mainAreaRef} className="flex-1 flex flex-col min-w-0 min-h-0">
         <header className="chat-enter shrink-0 flex items-center gap-2 px-4 py-3 border-b border-gray-100">
           {!sidebarOpen && (
             <button
@@ -188,14 +218,20 @@ export default function ChatPage() {
               <Menu size={18} />
             </button>
           )}
-          <div className="flex-1 font-medium text-gray-800">Offer 捕手</div>
           <button
-            onClick={() => {
-              clearToken();
-              window.location.href = "/login";
-            }}
+            type="button"
+            onClick={goHome}
+            className="flex-1 flex items-center gap-1.5 font-medium text-gray-800 hover:text-brand-700 transition text-left min-w-0"
+            title="返回主界面"
+          >
+            <Home size={16} className="shrink-0 text-brand-600" />
+            <span className="truncate">Offer 捕手</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setLogoutConfirmOpen(true)}
             className="p-2 rounded-lg hover:bg-gray-100 text-gray-500"
-            title="退出"
+            title="退出登录"
           >
             <LogOut size={18} />
           </button>
@@ -328,6 +364,13 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
+
+      <LogoutConfirmDialog
+        open={logoutConfirmOpen}
+        onCancel={() => setLogoutConfirmOpen(false)}
+        onConfirm={startLogoutAnimation}
+      />
+      {logoutExiting && <EnvelopeExitOverlay onComplete={finishLogout} />}
     </div>
   );
 }

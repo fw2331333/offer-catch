@@ -1,3 +1,4 @@
+import os
 import uuid
 from pathlib import Path
 
@@ -48,6 +49,37 @@ async def list_resumes(user: User = Depends(get_current_user), db: AsyncSession 
 async def latest_resume(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     resume = await get_active_resume(db, user.id)
     return _to_response(resume) if resume else None
+
+
+@router.delete("/{resume_id}", status_code=204)
+async def delete_resume(
+    resume_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    resume = await db.get(Resume, resume_id)
+    if not resume or resume.user_id != user.id:
+        raise HTTPException(404, detail="简历不存在")
+    was_active = resume.is_active
+    path = Path(resume.file_path)
+    await db.delete(resume)
+    await db.commit()
+    if path.is_file():
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+    if was_active:
+        result = await db.execute(
+            select(Resume)
+            .where(Resume.user_id == user.id)
+            .order_by(Resume.created_at.desc())
+            .limit(1)
+        )
+        next_resume = result.scalar_one_or_none()
+        if next_resume:
+            next_resume.is_active = True
+            await db.commit()
 
 
 @router.patch("/{resume_id}/activate", response_model=ResumeResponse)

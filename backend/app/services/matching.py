@@ -131,11 +131,14 @@ async def rank_jobs_for_recommend(
     db: AsyncSession,
     profile: StudentProfile | None,
     *,
+    user_id: int,
     city: str | None = None,
     job_type: str | None = None,
     limit: int = 30,
 ) -> list[tuple[JobPosting, float]]:
-    q = select(JobPosting)
+    from app.services.job_visibility import job_visible_clause
+
+    q = select(JobPosting).where(job_visible_clause(user_id))
     if city:
         q = q.where(JobPosting.city == city)
     if job_type:
@@ -337,9 +340,9 @@ async def fetch_job_report(
     api_key: str,
 ) -> tuple[dict[str, Any], bool]:
     """返回报告 dict 与是否来自缓存。未完成时独立触发 AI（可与批量分析并发）。"""
-    job = await db.get(JobPosting, job_id)
-    if not job:
-        raise LLMServiceError("岗位不存在", status_code=404)  # noqa: TRY003
+    from app.services.job_visibility import assert_job_visible
+
+    job = assert_job_visible(await db.get(JobPosting, job_id), user_id)
 
     row = await get_match_result(db, user_id, job_id)
     if row and row.analysis_status == "completed" and row.report:
@@ -382,7 +385,9 @@ async def recommend_jobs(
     city: str | None = None,
     job_type: str | None = None,
 ) -> list[dict[str, Any]]:
-    ranked = await rank_jobs_for_recommend(db, profile, city=city, job_type=job_type, limit=limit)
+    ranked = await rank_jobs_for_recommend(
+        db, profile, user_id=user_id, city=city, job_type=job_type, limit=limit
+    )
     items: list[dict[str, Any]] = []
     for job, _ in ranked[:limit]:
         row = await get_match_result(db, user_id, job.id)

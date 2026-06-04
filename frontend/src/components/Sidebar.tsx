@@ -1,4 +1,4 @@
-import { Check, FileText, KeyRound, MessageSquarePlus, PanelLeft, Upload } from "lucide-react";
+import { Check, FileText, KeyRound, MessageSquarePlus, PanelLeft, Trash2, Upload } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { ChatSession, ResumeListItem, ResumeListResponse } from "../api/types";
@@ -133,6 +133,19 @@ export default function Sidebar({
     }
   };
 
+  const deleteResume = async (id: number) => {
+    if (!confirm("确定删除该简历？删除后无法恢复。")) return;
+    setResumeMsg("");
+    try {
+      await api(`/api/v1/resumes/${id}`, { method: "DELETE" });
+      setResumeMsg("简历已删除");
+      await loadResumes();
+      onResumeChange?.();
+    } catch (err) {
+      setResumeMsg(err instanceof Error ? err.message : "删除失败");
+    }
+  };
+
   const activateResume = async (id: number) => {
     if (id === activeResumeId) return;
     setActivatingId(id);
@@ -262,34 +275,46 @@ export default function Sidebar({
           {resumes.map((r) => {
             const active = r.id === activeResumeId || r.is_active;
             return (
-              <button
+              <div
                 key={r.id}
-                type="button"
-                disabled={activatingId === r.id}
-                onClick={() => activateResume(r.id)}
-                className={`w-full text-left px-2.5 py-2 rounded-lg border text-xs transition ${
+                className={`flex items-stretch gap-0.5 rounded-lg border text-xs transition ${
                   active
                     ? "border-brand-200 bg-brand-50/80"
                     : "border-transparent hover:bg-gray-50 hover:border-gray-100"
                 }`}
               >
-                <div className="flex items-start gap-1.5">
-                  {active ? (
-                    <Check size={14} className="text-brand-600 shrink-0 mt-0.5" />
-                  ) : (
-                    <span className="w-3.5 shrink-0" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium text-gray-800 truncate" title={r.filename}>
-                      {r.filename}
-                    </div>
-                    <div className="text-gray-500 truncate mt-0.5">{r.preview || "已解析"}</div>
-                    <div className="text-gray-400 mt-0.5">
-                      v{r.version} · {formatResumeDate(r.created_at)}
+                <button
+                  type="button"
+                  disabled={activatingId === r.id}
+                  onClick={() => activateResume(r.id)}
+                  className="flex-1 min-w-0 text-left px-2.5 py-2"
+                >
+                  <div className="flex items-start gap-1.5">
+                    {active ? (
+                      <Check size={14} className="text-brand-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <span className="w-3.5 shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-gray-800 truncate" title={r.filename}>
+                        {r.filename}
+                      </div>
+                      <div className="text-gray-500 truncate mt-0.5">{r.preview || "已解析"}</div>
+                      <div className="text-gray-400 mt-0.5">
+                        v{r.version} · {formatResumeDate(r.created_at)}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </button>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteResume(r.id)}
+                  className="shrink-0 px-2 text-gray-400 hover:text-red-600 hover:bg-red-50/80 rounded-r-lg"
+                  title="删除简历"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             );
           })}
         </div>

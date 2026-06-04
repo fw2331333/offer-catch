@@ -47,8 +47,15 @@ class JobListItem(BaseModel):
     tags: list | None
     source: str | None = "seed"
     source_url: str | None = None
+    is_mine: bool = False
+    is_shared: bool = False
+    shared_by_username: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class JobShareUpdate(BaseModel):
+    shared: bool
 
 
 class JobDetail(JobListItem):
@@ -56,6 +63,8 @@ class JobDetail(JobListItem):
     requirements: dict | None
     created_by_user_id: int | None = None
     created_at: datetime
+    can_edit: bool = False
+    can_share: bool = False
 
 
 class AiSearchRequest(BaseModel):

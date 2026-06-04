@@ -27,6 +27,7 @@ from app.schemas.job import (
     JobDetail,
     JobListItem,
     JobResumeAnalysisResponse,
+    JobShareUpdate,
     JobUpdate,
     LocalSearchHit,
     ParseJobResponse,
@@ -52,12 +53,23 @@ from app.services.redis_cache import (
     jobs_list_cache_key,
     jobs_list_ttl,
 )
+from app.services.job_visibility import assert_job_visible, job_visible_clause, job_visible_to_user
 from app.services.resume_parser import ensure_upload_dir
 
 router = APIRouter(prefix="/jobs", tags=["岗位"])
 
 
-def _to_list_item(job: JobPosting) -> JobListItem:
+def _job_to_list_item(
+    job: JobPosting,
+    user_id: int,
+    usernames: dict[int, str],
+) -> JobListItem:
+    owner_id = job.created_by_user_id
+    is_mine = owner_id == user_id
+    is_seed = (getattr(job, "source", None) or "seed") == "seed"
+    shared_by = None
+    if not is_mine and not is_seed and job.is_shared and owner_id:
+        shared_by = usernames.get(owner_id) or "其他用户"
     return JobListItem(
         id=job.id,
         company=job.company,
@@ -70,17 +82,37 @@ def _to_list_item(job: JobPosting) -> JobListItem:
         tags=job.tags or [],
         source=getattr(job, "source", None) or "seed",
         source_url=getattr(job, "source_url", None),
+        is_mine=is_mine,
+        is_shared=bool(job.is_shared),
+        shared_by_username=shared_by,
     )
 
 
-def _to_job_detail(job: JobPosting) -> JobDetail:
-    base = _to_list_item(job)
+async def _load_usernames(db: AsyncSession, jobs: list[JobPosting]) -> dict[int, str]:
+    owner_ids = {j.created_by_user_id for j in jobs if j.created_by_user_id is not None}
+    if not owner_ids:
+        return {}
+    result = await db.execute(select(User.id, User.username).where(User.id.in_(owner_ids)))
+    return {row[0]: row[1] for row in result.all()}
+
+
+async def _jobs_to_list_items(db: AsyncSession, jobs: list[JobPosting], user_id: int) -> list[JobListItem]:
+    names = await _load_usernames(db, jobs)
+    return [_job_to_list_item(j, user_id, names) for j in jobs]
+
+
+def _to_job_detail(job: JobPosting, user_id: int, usernames: dict[int, str]) -> JobDetail:
+    base = _job_to_list_item(job, user_id, usernames)
+    is_mine = job.created_by_user_id == user_id
+    can_manage = is_mine and job.source != "seed"
     return JobDetail(
         **base.model_dump(),
         description=job.description or "",
         requirements=job.requirements,
         created_by_user_id=getattr(job, "created_by_user_id", None),
         created_at=job.created_at,
+        can_edit=can_manage,
+        can_share=can_manage,
     )
 
 
@@ -91,17 +123,16 @@ async def list_jobs(
     source: str | None = None,
     q: str | None = Query(None, description="关键词"),
     limit: int = Query(50, le=100),
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # 典型缓存：cache_get_json → 未命中查库 → cache_set_json（见 redis_cache.py）
     redis = get_redis()
-    cache_key = jobs_list_cache_key(city, job_type, source, q, limit)
+    cache_key = jobs_list_cache_key(user.id, city, job_type, source, q, limit)
     cached = await cache_get_json(redis, cache_key)
     if cached is not None:
-        return [JobListItem.model_validate(item) for item in cached]  # 命中缓存，跳过 SQL
+        return [JobListItem.model_validate(item) for item in cached]
 
-    stmt = select(JobPosting)
+    stmt = select(JobPosting).where(job_visible_clause(user.id))
     if city:
         stmt = stmt.where(JobPosting.city == city)
     if job_type:
@@ -112,7 +143,8 @@ async def list_jobs(
         stmt = stmt.where(JobPosting.title.ilike(f"%{q}%") | JobPosting.company.ilike(f"%{q}%"))
     stmt = stmt.order_by(JobPosting.created_at.desc()).limit(limit)
     result = await db.execute(stmt)
-    items = [_to_list_item(j) for j in result.scalars().all()]
+    jobs = list(result.scalars().all())
+    items = await _jobs_to_list_items(db, jobs, user.id)
     await cache_set_json(
         redis,
         cache_key,
@@ -133,7 +165,8 @@ async def create_job(
     await db.commit()
     await db.refresh(job)
     await invalidate_jobs_cache(get_redis(), job.id)
-    return _to_job_detail(job)
+    names = await _load_usernames(db, [job])
+    return _to_job_detail(job, user.id, names)
 
 
 async def _save_parsed(
@@ -181,7 +214,8 @@ async def parse_text_job(
     job_detail = None
     if body.save:
         job = await _save_parsed(db, user, parsed, source="paste")
-        job_detail = _to_job_detail(job)
+        names = await _load_usernames(db, [job])
+        job_detail = _to_job_detail(job, user.id, names)
 
     return ParseJobResponse(
         source_type="paste",
@@ -225,7 +259,8 @@ async def parse_file_job(
     job_detail = None
     if save:
         job = await _save_parsed(db, user, parsed, source="file")
-        job_detail = _to_job_detail(job)
+        names = await _load_usernames(db, [job])
+        job_detail = _to_job_detail(job, user.id, names)
 
     return ParseJobResponse(
         source_type="file",
@@ -268,7 +303,8 @@ async def parse_screenshot_job(
     job_detail = None
     if save:
         job = await _save_parsed(db, user, parsed, source="screenshot")
-        job_detail = _to_job_detail(job)
+        names = await _load_usernames(db, [job])
+        job_detail = _to_job_detail(job, user.id, names)
 
     return ParseJobResponse(
         source_type="screenshot",
@@ -284,9 +320,7 @@ async def analyze_job_with_resume(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    job = await db.get(JobPosting, job_id)
-    if not job:
-        raise HTTPException(404, detail="岗位不存在")
+    job = assert_job_visible(await db.get(JobPosting, job_id), user.id)
 
     result = await db.execute(select(StudentProfile).where(StudentProfile.user_id == user.id))
     profile = result.scalar_one_or_none()
@@ -339,15 +373,18 @@ async def ai_search_jobs(
             db,
             body.query,
             api_key=api_key,
+            user_id=user.id,
             limit=15,
             profile=profile,
             city=body.city,
             job_type=body.job_type,
             roles=body.roles,
         )
+        job_rows = [j for j, _ in local]
+        names = await _load_usernames(db, job_rows)
         local_hits = [
             LocalSearchHit(
-                **_to_list_item(job).model_dump(),
+                **_job_to_list_item(job, user.id, names).model_dump(),
                 match_reason=reason,
             )
             for job, reason in local
@@ -406,28 +443,47 @@ async def import_ai_jobs(
     for job in imported:
         await db.refresh(job)
     await invalidate_jobs_cache(get_redis())
-    return AiImportResponse(
-        imported=[_to_list_item(j) for j in imported],
-        count=len(imported),
-    )
+    imported_items = await _jobs_to_list_items(db, imported, user.id)
+    return AiImportResponse(imported=imported_items, count=len(imported))
+
+
+@router.patch("/{job_id}/share", response_model=JobListItem)
+async def set_job_share(
+    job_id: int,
+    body: JobShareUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    job = await db.get(JobPosting, job_id)
+    if not job:
+        raise HTTPException(404, detail="岗位不存在")
+    if job.source == "seed":
+        raise HTTPException(403, detail="系统预置岗位不可共享")
+    if job.created_by_user_id != user.id:
+        raise HTTPException(403, detail="仅可共享自己录入的岗位")
+    job.is_shared = body.shared
+    await db.commit()
+    await db.refresh(job)
+    await invalidate_jobs_cache(get_redis(), job.id)
+    names = await _load_usernames(db, [job])
+    return _job_to_list_item(job, user.id, names)
 
 
 @router.get("/{job_id}", response_model=JobDetail)
 async def get_job(
     job_id: int,
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     redis = get_redis()
-    cache_key = job_detail_cache_key(job_id)
+    cache_key = job_detail_cache_key(job_id, user.id)
     cached = await cache_get_json(redis, cache_key)
     if cached is not None:
         return JobDetail.model_validate(cached)
 
-    job = await db.get(JobPosting, job_id)
-    if not job:
-        raise HTTPException(404, detail="岗位不存在")
-    detail = _to_job_detail(job)
+    job = assert_job_visible(await db.get(JobPosting, job_id), user.id)
+    names = await _load_usernames(db, [job])
+    detail = _to_job_detail(job, user.id, names)
     await cache_set_json(redis, cache_key, detail.model_dump(mode="json"), job_detail_ttl())
     return detail
 
@@ -455,7 +511,8 @@ async def update_job(
     await db.commit()
     await db.refresh(job)
     await invalidate_jobs_cache(get_redis(), job.id)
-    return _to_job_detail(job)
+    names = await _load_usernames(db, [job])
+    return _to_job_detail(job, user.id, names)
 
 
 @router.delete("/{job_id}", status_code=204)

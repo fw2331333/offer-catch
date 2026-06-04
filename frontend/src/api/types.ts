@@ -80,6 +80,9 @@ export interface JobListItem {
   tags?: string[] | null;
   source?: string;
   source_url?: string | null;
+  is_mine?: boolean;
+  is_shared?: boolean;
+  shared_by_username?: string | null;
 }
 
 export interface JobDetail extends JobListItem {
@@ -90,4 +93,7 @@ export interface JobDetail extends JobListItem {
     education?: string;
   } | null;
   created_at?: string;
+  created_by_user_id?: number | null;
+  can_edit?: boolean;
+  can_share?: boolean;
 }

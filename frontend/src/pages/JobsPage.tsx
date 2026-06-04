@@ -11,6 +11,7 @@ import {
   Plus,
   Save,
   Search,
+  Share2,
   Sparkles,
   Trash2,
   Database,
@@ -20,6 +21,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import FlashBanner from "../components/FlashBanner";
+import ResumeAnalysisPanel, { type ResumeAnalysisData } from "../components/ResumeAnalysisPanel";
 import SingleAutocomplete from "../components/SingleAutocomplete";
 import TagAutocomplete from "../components/TagAutocomplete";
 import { useFlashMessage } from "../hooks/useFlashMessage";
@@ -38,20 +40,6 @@ interface ParsedPreview {
   industry?: string;
   parse_note?: string;
   tags?: string[];
-}
-
-interface ResumeAnalysis {
-  job_id: number;
-  job_title: string;
-  company: string;
-  overall_score: number;
-  recommendation: string;
-  match_summary: string;
-  matched_items: { item: string; evidence: string }[];
-  gaps: { item: string; suggestion: string }[];
-  risks: string[];
-  optimization_summary: string;
-  suggestions: { priority: string; action: string; issue?: string }[];
 }
 
 interface AiJob {
@@ -131,7 +119,8 @@ export default function JobsPage() {
   const [parsedPreview, setParsedPreview] = useState<ParsedPreview | null>(null);
   const [extractedText, setExtractedText] = useState("");
   const [savedJobId, setSavedJobId] = useState<number | null>(null);
-  const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null);
+  const [analysis, setAnalysis] = useState<ResumeAnalysisData | null>(null);
+  const [analysisJobId, setAnalysisJobId] = useState<number | null>(null);
   const [createParseNote, setCreateParseNote] = useState("");
   const [createPasteText, setCreatePasteText] = useState("");
   const [createImagePreview, setCreateImagePreview] = useState<string | null>(null);
@@ -151,6 +140,10 @@ export default function JobsPage() {
   const openJobDetail = async (id: number) => {
     setDetailLoading(true);
     setListError("");
+    if (analysisJobId !== id) {
+      setAnalysis(null);
+      setAnalysisJobId(null);
+    }
     try {
       const detail = await api<JobDetail>(`/api/v1/jobs/${id}`);
       setSelectedDetail(detail);
@@ -380,6 +373,23 @@ export default function JobsPage() {
     }
   };
 
+  const toggleJobShare = async (job: JobDetail | JobListItem, shared: boolean) => {
+    try {
+      await api<JobListItem>(`/api/v1/jobs/${job.id}/share`, {
+        method: "PATCH",
+        body: JSON.stringify({ shared }),
+      });
+      await loadJobs();
+      if (selectedDetail?.id === job.id) {
+        const detail = await api<JobDetail>(`/api/v1/jobs/${job.id}`);
+        setSelectedDetail(detail);
+      }
+      showMessage(shared ? "已共享，其他用户可见" : "已取消共享，仅自己可见", { tone: "success" });
+    } catch (err) {
+      showMessage(err instanceof Error ? err.message : "操作失败", { tone: "error" });
+    }
+  };
+
   const parseText = async () => {
     setLoading(true);
     clearMessage();
@@ -434,19 +444,25 @@ export default function JobsPage() {
   const runResumeAnalysis = async (jobId?: number) => {
     const id = jobId ?? savedJobId;
     if (!id) {
-      showMessage("请先解析并保存岗位", { tone: "info" });
+      showMessage("请先选择或保存岗位", { tone: "info" });
       return;
     }
     setLoading(true);
+    setAnalysisJobId(id);
+    setAnalysis(null);
     clearMessage();
     try {
-      const res = await api<ResumeAnalysis>(`/api/v1/jobs/${id}/resume-analysis`, {
+      const res = await api<ResumeAnalysisData>(`/api/v1/jobs/${id}/resume-analysis`, {
         method: "POST",
       });
       setAnalysis(res);
       setSavedJobId(id);
+      showMessage("简历分析完成", { tone: "success" });
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : "分析失败，请先上传简历", { tone: "error" });
+      setAnalysisJobId(null);
+      showMessage(err instanceof Error ? err.message : "分析失败，请先在对话页上传简历并配置 API Key", {
+        tone: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -530,9 +546,27 @@ export default function JobsPage() {
                         {job.company} · {job.city} · {job.job_type}
                       </p>
                     </div>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 shrink-0">
-                      {sourceLabel(job.source)}
-                    </span>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                        {sourceLabel(job.source)}
+                      </span>
+                      {job.shared_by_username ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-100">
+                          {job.shared_by_username} 共享
+                        </span>
+                      ) : null}
+                      {job.is_mine && job.source !== "seed" ? (
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${
+                            job.is_shared
+                              ? "bg-green-50 text-green-700 border border-green-100"
+                              : "bg-amber-50 text-amber-800 border border-amber-100"
+                          }`}
+                        >
+                          {job.is_shared ? "已共享" : "仅自己"}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                   <p className="text-xs text-brand-600 mt-2">点击查看详情 →</p>
                 </button>
@@ -602,16 +636,37 @@ export default function JobsPage() {
                       打开招聘链接
                     </a>
                   ) : null}
-                  <div className="flex gap-3 pt-2 border-t">
+                  <div className="flex flex-wrap gap-2 pt-2 border-t">
                     <button
+                      type="button"
+                      disabled={loading && analysisJobId === selectedDetail.id}
                       onClick={() => runResumeAnalysis(selectedDetail.id)}
-                      className="flex items-center gap-1 px-3 py-2 rounded-lg bg-brand-600 text-white text-xs hover:bg-brand-700"
+                      className="flex items-center gap-1 px-3 py-2 rounded-lg bg-brand-600 text-white text-xs hover:bg-brand-700 disabled:opacity-50"
                     >
-                      <Sparkles size={14} />
+                      {loading && analysisJobId === selectedDetail.id ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Sparkles size={14} />
+                      )}
                       结合简历分析
                     </button>
-                    {selectedDetail.source !== "seed" && (
+                    {selectedDetail.can_share && (
                       <button
+                        type="button"
+                        onClick={() => toggleJobShare(selectedDetail, !selectedDetail.is_shared)}
+                        className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs border ${
+                          selectedDetail.is_shared
+                            ? "border-green-200 bg-green-50 text-green-700"
+                            : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        <Share2 size={14} />
+                        {selectedDetail.is_shared ? "取消共享" : "共享给其他用户"}
+                      </button>
+                    )}
+                    {selectedDetail.can_edit && (
+                      <button
+                        type="button"
                         onClick={() => deleteJob(selectedDetail.id)}
                         className="text-xs text-red-500 px-3 py-2 border border-red-100 rounded-lg hover:bg-red-50"
                       >
@@ -619,6 +674,10 @@ export default function JobsPage() {
                       </button>
                     )}
                   </div>
+                  {loading && analysisJobId === selectedDetail.id && <ResumeAnalysisPanel loading />}
+                  {analysis && analysisJobId === selectedDetail.id && !loading && (
+                    <ResumeAnalysisPanel analysis={analysis} />
+                  )}
                 </div>
               )}
               </div>
@@ -707,62 +766,8 @@ export default function JobsPage() {
               <pre className="text-xs bg-gray-50 p-3 rounded-lg overflow-auto max-h-32">{extractedText}</pre>
             )}
 
-            {analysis && (
-              <div className="bg-white rounded-xl border p-4 space-y-4 text-sm">
-                <div>
-                  <h3 className="font-medium text-lg">
-                    匹配分 {analysis.overall_score.toFixed(0)} · 建议 {analysis.recommendation}
-                  </h3>
-                  <p className="text-gray-600 mt-1">{analysis.match_summary}</p>
-                </div>
-                {analysis.matched_items?.length > 0 && (
-                  <div>
-                    <h4 className="font-medium text-gray-700 mb-1">匹配项</h4>
-                    <ul className="space-y-1 text-gray-600">
-                      {analysis.matched_items.map((m, i) => (
-                        <li key={i}>
-                          · {m.item}
-                          {m.evidence ? ` — ${m.evidence}` : ""}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {analysis.gaps?.length > 0 && (
-                  <div>
-                    <h4 className="font-medium text-gray-700 mb-1">待补齐</h4>
-                    <ul className="space-y-1 text-amber-700">
-                      {analysis.gaps.map((g, i) => (
-                        <li key={i}>
-                          · {g.item}：{g.suggestion}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {analysis.risks?.length > 0 && (
-                  <div>
-                    <h4 className="font-medium text-gray-700 mb-1">风险</h4>
-                    <ul className="text-red-600">
-                      {analysis.risks.map((r, i) => (
-                        <li key={i}>· {r}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                <div className="border-t pt-3">
-                  <h4 className="font-medium text-gray-700 mb-1">简历优化</h4>
-                  <p className="text-gray-600">{analysis.optimization_summary}</p>
-                  <ul className="mt-2 space-y-1">
-                    {(analysis.suggestions || []).map((s, i) => (
-                      <li key={i} className="text-gray-700">
-                        [{s.priority}] {s.action || s.issue}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
+            {loading && analysisJobId != null && !analysis && <ResumeAnalysisPanel loading />}
+            {analysis && <ResumeAnalysisPanel analysis={analysis} />}
           </div>
         )}
 

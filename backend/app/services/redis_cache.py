@@ -20,6 +20,7 @@ PREFIX_PROFILE = "cache:profile:"
 
 
 def jobs_list_cache_key(
+    user_id: int,
     city: str | None,
     job_type: str | None,
     source: str | None,
@@ -28,6 +29,7 @@ def jobs_list_cache_key(
 ) -> str:
     raw = "|".join(
         [
+            str(user_id),
             city or "",
             job_type or "",
             source or "",
@@ -39,8 +41,8 @@ def jobs_list_cache_key(
     return f"{PREFIX_JOBS_LIST}{digest}"
 
 
-def job_detail_cache_key(job_id: int) -> str:
-    return f"{PREFIX_JOB_DETAIL}{job_id}"
+def job_detail_cache_key(job_id: int, user_id: int) -> str:
+    return f"{PREFIX_JOB_DETAIL}{user_id}:{job_id}"
 
 
 def profile_cache_key(user_id: int) -> str:
@@ -79,7 +81,11 @@ async def cache_delete_prefix(redis: Redis, prefix: str) -> int:
 async def invalidate_jobs_cache(redis: Redis, job_id: int | None = None) -> None:
     await cache_delete_prefix(redis, PREFIX_JOBS_LIST)
     if job_id is not None:
-        await redis.delete(job_detail_cache_key(job_id))
+        try:
+            async for key in redis.scan_iter(match=f"{PREFIX_JOB_DETAIL}*:{job_id}"):
+                await redis.delete(key)
+        except Exception:
+            logger.exception("Redis cache delete job detail failed: %s", job_id)
 
 
 async def invalidate_profile_cache(redis: Redis, user_id: int) -> None:

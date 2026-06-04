@@ -40,7 +40,12 @@ async def recommend(
     resume = await get_active_resume(db, user.id)
 
     ranked = await rank_jobs_for_recommend(
-        db, profile, city=body.city, job_type=body.job_type, limit=body.limit
+        db,
+        profile,
+        user_id=user.id,
+        city=body.city,
+        job_type=body.job_type,
+        limit=body.limit,
     )
     items_raw = await init_recommend_queue(db, user.id, ranked)
     items = [MatchListItem.model_validate(x) for x in items_raw]
@@ -64,7 +69,7 @@ async def list_match_queue(
     result = await db.execute(select(StudentProfile).where(StudentProfile.user_id == user.id))
     profile = result.scalar_one_or_none()
     resume = await get_active_resume(db, user.id)
-    ranked = await rank_jobs_for_recommend(db, profile, limit=limit)
+    ranked = await rank_jobs_for_recommend(db, profile, user_id=user.id, limit=limit)
     items_raw = await load_recommend_list(db, user.id, ranked)
     items = [MatchListItem.model_validate(x) for x in items_raw]
     profile_ok = bool(profile and (profile.target_cities or profile.target_roles))
