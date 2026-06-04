@@ -1,5 +1,7 @@
 # Offer 捕手 — 接口设计文档
 
+> 面向开发者。用户文档见 [用户指南](./用户指南.md)。
+
 **Base URL**：`http://localhost:8000`（Docker 内前端经 Nginx 代理 `/api`）
 
 **认证**：除注册/登录外，Header 携带 `Authorization: Bearer <token>`

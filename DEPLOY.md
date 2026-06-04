@@ -1,7 +1,11 @@
 # Offer 捕手 — 服务器部署指南
 
-## 一、密钥会不会暴露？
+> **读者说明：** 本文面向 **运维 / 开发者**，用于在 Linux 服务器上部署本站。  
+> **最终用户** 请阅读 [使用指南](docs/用户指南.md) 与 [常见问题](docs/常见问题.md)。
 
+---
+
+## 一、密钥会不会暴露？
 | 做法 | 是否安全 |
 |------|----------|
 | 密钥写在 `.env`，且 **已加入 `.gitignore`** | ✅ 不会进 Git 仓库 |
@@ -130,16 +134,17 @@ sudo docker compose -p offer-hunter up -d
 
 ```bash
 cd ~/offer-catch
-sudo docker-compose -p offer-hunter up -d --build
-
-若 `docker-compose.prod.yml` 报错（旧版不支持 `!reset`），用上面这一条即可。  
-可选叠加（仅隐藏 API 宿主机端口）：`sudo docker-compose -f docker-compose.yml -f docker-compose.prod.yml -p offer-hunter up -d --build`
+sudo docker compose -p offer-hunter up -d --build
 ```
+
+**没有域名时：** 安全组放行 **8080**，`.env` 中设置 `APP_PUBLIC_URL=http://公网IP:8080` 与相同 `CORS_ORIGINS`，用户通过 `http://IP:8080` 访问。详见上文「国内服务器加速」与用户文档。
+
+若 `docker-compose.prod.yml` 报错（旧版不支持 `!reset`），仅用 `docker-compose.yml` 即可。
 
 检查：
 
 ```bash
-sudo docker-compose -p offer-hunter ps
+sudo docker compose -p offer-hunter ps
 curl http://127.0.0.1:8001/health
 curl -I http://127.0.0.1:8080
 ```
@@ -159,10 +164,15 @@ sudo apt install -y caddy
 
 ```caddy
 你的域名.com {
-    reverse_proxy /api/* 127.0.0.1:8001
-    reverse_proxy /*      127.0.0.1:8080
+    reverse_proxy 127.0.0.1:8080
+}
+
+www.你的域名.com {
+    reverse_proxy 127.0.0.1:8080
 }
 ```
+
+（容器内 Nginx 已把 `/api/` 转给后端，宿主机只需反代 **8080**。）
 
 ```bash
 sudo systemctl reload caddy
@@ -187,14 +197,14 @@ sudo systemctl reload caddy
 
 ```bash
 # 查看日志
-sudo docker-compose -p offer-hunter logs -f api
+sudo docker compose -p offer-hunter logs -f api
 
 # 更新代码后重新发布
 cd ~/offer-catch && git pull
-sudo docker-compose -p offer-hunter up -d --build
+sudo docker compose -p offer-hunter up -d --build
 
 # 停止
-sudo docker-compose -p offer-hunter down
+sudo docker compose -p offer-hunter down
 ```
 
 ---
