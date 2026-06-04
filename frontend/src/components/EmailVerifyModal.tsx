@@ -73,12 +73,7 @@ export default function EmailVerifyModal({
             </>
           )}
         </p>
-        {/* <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-          手机 QQ 邮箱打开链接若提示 Invalid url，请把电脑 <code className="text-gray-700">.env</code>{" "}
-          里的 <code className="text-gray-700">APP_PUBLIC_URL</code> 改成电脑局域网地址（如{" "}
-          <code className="text-gray-700">http://192.168.1.100:8080</code>），重建 api 后重新注册发信。
-        </p> */}
-
+  
         {resendMsg && (
           <p className="text-sm text-brand-700 bg-brand-50 border border-brand-100 rounded-xl px-3 py-2 mb-3">
             {resendMsg}

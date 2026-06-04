@@ -43,10 +43,6 @@ export default function SetPasswordPage() {
     };
   }, [token]);
 
-  const isLocalhost =
-    typeof window !== "undefined" &&
-    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-
   const title =
     purpose === "reset_password" ? "重置密码" : purpose === "verify_email" ? "设置密码并完成注册" : "设置密码";
 
@@ -93,11 +89,6 @@ export default function SetPasswordPage() {
             {emailMasked && (
               <p className="text-sm text-gray-500 mb-4">
                 账号：<span className="font-medium text-gray-700">{emailMasked}</span>
-              </p>
-            )}
-            {isLocalhost && (
-              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-4">
-                手机 QQ 打开 localhost 链接会失败，请用电脑浏览器，或将 APP_PUBLIC_URL 改为局域网 IP。
               </p>
             )}
             <form onSubmit={submit} className="space-y-4">
