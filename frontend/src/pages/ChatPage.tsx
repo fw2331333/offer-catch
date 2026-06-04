@@ -207,9 +207,9 @@ export default function ChatPage() {
               <div className="chat-enter w-14 h-14 rounded-2xl bg-brand-600 flex items-center justify-center text-white text-2xl font-bold mb-6 shadow-lg shadow-brand-100">
                 O
               </div>
-              <h2 className="chat-enter text-2xl font-medium text-gray-800 mb-2">开始你的求职助手</h2>
+              <h2 className="chat-enter text-2xl font-medium text-gray-800 mb-2">开始你的求职之旅</h2>
               <p className="chat-enter text-sm text-gray-500 mb-8">
-                左侧上传简历 · 深度思考展示分析要点（非内部话术）
+                左侧上传简历 · 深度思考展示分析要点
               </p>
               <div className="flex flex-wrap justify-center gap-3 mb-10">
                 {MAIN_NAV.map(({ to, label, icon: Icon }) => (
@@ -270,7 +270,7 @@ export default function ChatPage() {
                     send();
                   }
                 }}
-                placeholder="给 Offer 捕手 发送消息 — 支持流式输出"
+                placeholder="给 Offer 捕手 发送消息 — 流式输出"
                 rows={3}
                 className="w-full resize-none bg-transparent px-4 pt-4 pb-2 text-[15px] focus:outline-none"
                 disabled={loading}
