@@ -1,5 +1,4 @@
-# 兼容 docker-compose 1.x：使用 version 3.8，项目名请用 -p offer-hunter
-version: "3.8"
+# 项目名请用 -p offer-hunter（Compose v2 无需顶层 version 字段）
 
 services:
   db:

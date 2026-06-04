@@ -9,6 +9,8 @@ interface Props {
   sessions: ChatSession[];
   currentId: number | null;
   resumeVersion: number;
+  /** 每次递增时打开系统文件选择（由对话区回形针触发） */
+  resumeUploadRequest?: number;
   onToggle: () => void;
   onNew: () => void;
   onSelect: (id: number) => void;
@@ -28,6 +30,7 @@ export default function Sidebar({
   sessions,
   currentId,
   resumeVersion,
+  resumeUploadRequest = 0,
   onToggle,
   onNew,
   onSelect,
@@ -76,6 +79,11 @@ export default function Sidebar({
       loadResumes();
     }
   }, [open, loadKeyStatus, loadResumes, resumeVersion]);
+
+  useEffect(() => {
+    if (!open || resumeUploadRequest < 1) return;
+    fileRef.current?.click();
+  }, [open, resumeUploadRequest]);
 
   useEffect(() => {
     if (!keyMsg) return;

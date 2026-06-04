@@ -45,10 +45,32 @@ docker --version
 docker-compose --version
 
 sudo usermod -aG docker $USER
-# 重新登录 SSH 后生效
+# 必须重新登录 SSH 后，才能不用 sudo 执行 docker
+newgrp docker   # 或开新 SSH 会话，否则仍会 permission denied
 ```
 
 若需 `docker compose`（无横杠）插件，见 [Docker 官方文档](https://docs.docker.com/engine/install/ubuntu/)。
+
+### 报错 `permission denied ... docker.sock`
+
+说明当前用户无权访问 Docker 守护进程，任选其一：
+
+**方式 A（立刻可用，推荐先部署）：** 命令前加 `sudo`：
+
+```bash
+cd ~/offer-catch
+sudo docker compose -p offer-hunter up -d --build
+```
+
+**方式 B（长期免 sudo）：** 加入 `docker` 组并 **重新登录 SSH**（仅 `newgrp docker` 对当前终端生效）：
+
+```bash
+sudo usermod -aG docker $USER
+# 退出 SSH 再登录，然后验证：
+docker ps
+```
+
+仍未生效时检查：`ls -l /var/run/docker.sock`（属主应为 `root:docker`），且 `groups` 输出中含 `docker`。
 
 ---
 

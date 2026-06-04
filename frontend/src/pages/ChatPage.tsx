@@ -30,6 +30,7 @@ export default function ChatPage() {
   const [smartSearch, setSmartSearch] = useState(true);
   const [loading, setLoading] = useState(false);
   const [resumeVersion, setResumeVersion] = useState(0);
+  const [resumeUploadRequest, setResumeUploadRequest] = useState(0);
   const [streamThinking, setStreamThinking] = useState("");
   const [streamContent, setStreamContent] = useState("");
   const [streamStatus, setStreamStatus] = useState("");
@@ -192,6 +193,11 @@ export default function ChatPage() {
 
   const bumpResume = () => setResumeVersion((v) => v + 1);
 
+  const requestResumeUpload = () => {
+    setSidebarOpen(true);
+    setResumeUploadRequest((n) => n + 1);
+  };
+
   const hasMessages = messages.length > 0;
 
   return (
@@ -201,6 +207,7 @@ export default function ChatPage() {
         sessions={sessions}
         currentId={sessionId}
         resumeVersion={resumeVersion}
+        resumeUploadRequest={resumeUploadRequest}
         onToggle={() => setSidebarOpen(false)}
         onNew={newChat}
         onSelect={selectSession}
@@ -341,9 +348,10 @@ export default function ChatPage() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setSidebarOpen(true)}
-                    className="p-2 rounded-lg hover:bg-gray-200 text-gray-500"
-                    title="在左侧「我的简历」上传或切换"
+                    onClick={requestResumeUpload}
+                    disabled={loading}
+                    className="p-2 rounded-lg hover:bg-gray-200 text-gray-500 disabled:opacity-40"
+                    title="上传简历（PDF / Word / TXT）"
                   >
                     <Paperclip size={18} />
                   </button>
